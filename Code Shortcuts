@@ -1,0 +1,109 @@
+# Standard Review of Dataset
+  df = pd.read_csv('data')
+  df.info()
+  df.describe()
+  df.head()
+
+  ## grab object columns and put their names in a list and drop the columns from dataset
+  object_columns = df.select_dtypes('object').columns.tolist() 
+  df_numeric = df.drop(object_columns, acis=1)
+
+  ## Find null values then drop null values
+  null_by_column = df.isnull().sum()
+  df_nona = df.dropna(axis=0)
+
+
+# PCA Analysis
+  from sklearn.decomposition import PCA
+  from sklearn.cluster import KMeans, DBSCAN
+  from sklearn.preprocessing import StandardScaler
+
+  ## Scale the dataset approach 1
+  df_scaled = (df - df.mean()) / df.std()
+
+    ### Set the PCA object and configure it 
+    pca = ''
+    pca = PCA(n_components=3, random_state=42)
+  
+    ### Create PCA Components
+    components = pca.fit_transform(df_scaled)
+
+  ## Scale the dataset approach 2
+  X = default.values
+  scaler = StandardScaler()
+  scaler.fit(X)
+  X_scaled = scaler.transform(X)
+  
+    ### Using Approach 2
+    pca_all = PCA(random_state=2020)
+    pca_all.fit(X_scaled)
+    X_pca_all = pca_all.transform(X_scaled)
+
+    show = X_scaled[:5]  
+    print(show)
+
+    ### Create Elbow Plot
+    cum = np.cumsum(pca_all.explained_variance_ratio_)
+    plt.plot(cum)
+    plt.xlabel('number of components')
+    plt.ylabel('explained variance')
+    plt.savefig('elbow_plot.png', dpi=100)
+
+  ## Create a heatmap of feature weight
+  features = list(default.columns)
+  loadings = pca_3.components_
+  loadings_df = pd.DataFrame(loadings.T, columns=['PC1', 'PC2', 'PC3'], index=features)
+  loadings_df
+
+  plt.figure(figsize=(10,6))
+  sns.heatmap(loadings_df, annot=True, cmap='RdBu_r', center=0)
+  plt.title('PCA Loadings Heatmap')
+  plt.show()
+
+# K Means
+  kmeans = ''
+  df = pd.read_csv('data/marketing_campaign.csv', sep = '\t')
+  df_clustered = df.dropna()
+  df_clustered['cluster'] = ''
+
+  kmeans = KMeans(n_clusters=3, random_state=42).fit(components)
+  df = pd.read_csv('data/marketing_campaign.csv', sep = '\t')
+  df_clustered = df.dropna(subset = ['Income'])
+  df_clustered['cluster'] = kmeans.labels_
+
+# K Means DBSCAN
+  import numpy as np
+  from sklearn.datasets import make_blobs
+  import matplotlib.pyplot as plt
+  import pandas as pd
+  import seaborn as sns
+  from sklearn.cluster import DBSCAN
+  from mpl_toolkits import mplot3d
+
+    # Set DBScan object
+    dbscan = '' #Don't Forget to set the random_state!!!
+    dbscan = DBSCAN()
+
+    # Prediction Labels
+    predictions = ''
+    dbscan = DBSCAN().fit(X)
+    predictions = dbscan.labels_
+
+    # Understand label predictions
+    unique_labels = ''
+    n_clusters_default = ''
+    unique_labels = np.unique(predictions)
+    n_clusters_default = 0
+
+# Putting PCA and KMeans Together
+  1) df_scaled = (df_clean_nona - df_clean_nona.mean())/df_clean_nona.std() 
+  2) pca = ''
+     pca = PCA(n_components=3, random_state=42)
+  3) components = pca.fit_transform(df_scaled)
+  4) df_['cluster'] = '' # add cluster column
+  5) kmeans = KMeans(n_clusters=3, random_state=42).fit(components) 
+  6) df_clustered['cluster'] = kmeans.labels_
+
+
+  
+
