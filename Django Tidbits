@@ -1,0 +1,23 @@
+Django Tidbits
+
+# FORMS: Creating Forms 
+  Django has a form class that makes it much easier to create forms
+
+  from django import Forms
+
+
+class LeadModelForm(forms.ModelForm):
+    class Meta:
+        model = Lead             #add the model that this will relate to
+        fields = (                 
+          "first_name",         # display these fields in the actual form
+            "last_name",
+            "age",
+            "agent"
+        )
+
+# NAMESPACE: 
+  use name space to define URLs rather than hard code them, keeps you from having to go into all of the templates with the links
+# TEMPLATES:
+  Make sure to set up the templates in base project settings... [ BASE_DIR / "templates" ]
+   
