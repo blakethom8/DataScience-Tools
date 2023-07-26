@@ -104,6 +104,31 @@
   5) kmeans = KMeans(n_clusters=3, random_state=42).fit(components) 
   6) df_clustered['cluster'] = kmeans.labels_
 
+# Linear Regressions
+  from sklearn.linear_model import LinearRegression
 
-  
+  X = geyser[['waiting']] # assign features as a dataframe
+  y = geyser['duration'] # assign values as a series
 
+  linreg = LinearRegression().fit(X, y)   # create the model object and fit it to the data 
+  geyser['prediction'] = linreg.predict(X) # assign the predicted values back to the dataframe 
+
+  slope = round(float(linreg.coef_), 2)
+  intercept = round(float(linreg.intercept_), 2)
+
+  ## chart the regression 
+    import plotly.graph_objects as go 
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=data['total_bill'], y=data['tip'], 
+                            mode = "markers", name = "actual")
+                 )
+    fig.add_trace(go.Scatter(x=data['total_bill'], y = data['prediction'], 
+                            mode="lines", name="predicted"))
+    
+    fig.update_layout(font_size=20)
+
+  ## Use plotly to create a linear regression
+    fig = px.scatter(data, x = "total_bill", y = "tip", trendline = "ols", 
+                 trendline_color_override = "black")
+    results = px.get_trendline_results(fig)
+    results.px_fit_results.iloc[0].params
