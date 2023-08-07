@@ -10,7 +10,13 @@
 
   ## Find null values then drop null values
   null_by_column = df.isnull().sum()
-  df_nona = df.dropna(axis=0)
+  df_no_na = df.dropna(axis=0)
+
+  ## Sort Columns
+  sorted_df = df.sort_values(by="column_name")
+
+  ## Find the correlated values to a a column salesprice
+    corr = train.corr()[['SalePrice']].nlargest(columns = 'SalePrice', n = 2).index[1]
 
 
 # PCA Analysis
@@ -116,7 +122,7 @@
   slope = round(float(linreg.coef_), 2)
   intercept = round(float(linreg.intercept_), 2)
 
-  ## chart the regression 
+  ## Plot Linear Regression line in Plotly Graph
     import plotly.graph_objects as go 
     fig = go.Figure()
     fig.add_trace(go.Scatter(x=data['total_bill'], y=data['tip'], 
@@ -127,8 +133,162 @@
     
     fig.update_layout(font_size=20)
 
-  ## Use plotly to create a linear regression
+  ## Use Plotly Express
     fig = px.scatter(data, x = "total_bill", y = "tip", trendline = "ols", 
                  trendline_color_override = "black")
     results = px.get_trendline_results(fig)
     results.px_fit_results.iloc[0].params
+
+## Simple Linear Regression with MSE example
+  X = ''
+  y = ''
+  first_degree_model = ''
+  first_degree_mse = ''
+  
+  # YOUR CODE HERE
+  X = auto[['horsepower']]
+  y = auto['mpg']
+  
+  first_degree_model = LinearRegression().fit(X,y)
+  first_degree_mse = mean_squared_error(auto['mpg'], first_degree_model.predict(auto[['horsepower']]))
+  
+  ## Quadratic Regression
+  X = ''
+  y = ''
+  quadratic_model = ''
+  quad_mse = ''
+  
+  X = auto[['horsepower', 'hp2']]
+  y = auto['mpg']
+  quadratic_model = LinearRegression().fit(X,y)
+  quad_mse = mean_squared_error(y, quadratic_model.predict(X))
+
+
+## Plotting Quadratic 
+  # Generating predictions
+  x_range = np.linspace(auto['horsepower'].min(), auto['horsepower'].max(), 100)
+  X_test = pd.DataFrame({'horsepower': x_range, 'hp2': x_range**2})
+  y_pred = quadratic_model.predict(X_test)
+  
+  # Plotting the actual data points
+  fig = go.Figure()
+  fig.add_trace(go.Scatter(x=auto['horsepower'], y=auto['mpg'], mode='markers', name='Actual Data Points'))
+  
+  # Plotting the quadratic regression curve
+  fig.add_trace(go.Scatter(x=x_range, y=y_pred, mode='lines', name='Quadratic Regression Model'))
+  
+  fig.update_layout(title='Quadratic Regression Model',
+                    xaxis_title='Horsepower',
+                    yaxis_title='MPG')
+  
+  fig.show()
+
+## Using a Transformer to create exponential columns
+  pfeatures = PolynomialFeatures(degree=3, include_bias=False)
+  cubic_features_df = pd.DataFrame(pfeatures.fit_transform(auto[['horsepower']]),
+                      columns = pfeatures.get_feature_names_out())
+
+
+## finding the MSEs over a range of Features
+mses = []
+X = auto[['horsepower']]
+y = auto['mpg']
+
+#for 1, 2, 3, ..., 10
+for i in range(1, 11):
+    pipeline = Pipeline([
+        ('number_features', PolynomialFeatures(degree = i, include_bias = False)),
+        ('mode', LinearRegression())
+    
+    ])
+    pipeline.fit(X, y)
+    pipeline_mse = mean_squared_error(y, pipeline.predict(X))
+    mses.append(pipeline_mse)
+
+#find the minimum index
+  best_complexity = mses.index(min(mses)) + 1
+
+
+### I really like this example of module 8. Here, we are taking a subset of data
+### as our development set. Training the model on the dataset, then predicting the
+### the dev set and looking at the Variance of the different degress
+
+  ## Create the development set
+    X = auto.loc[:,['horsepower']]
+    y = auto['mpg']
+    sample = auto.sample(10, random_state = 22)
+    X_train = sample.loc[:, ['horsepower']]
+    y_train = sample['mpg']
+  
+  ## Insert the predicted outcomes into columns of model predictions
+    model_predictions = {f'degree_{i}': None for i in range(1, 11)}
+    
+    X = auto[['horsepower']]
+    y = auto['mpg']
+    for i in range(1, 11):
+        pipe = Pipeline([('quad_features', PolynomialFeatures(degree = i, include_bias = False)), 
+                          ('quad_model', LinearRegression())])
+        pipe.fit(X_train, y_train)
+        preds = pipe.predict(X)
+        model_predictions[f'degree_{i}'] = preds
+    #Results check 
+      model_predictions['degree_1'][:10]
+    #Then convert it to a dataframe here
+      pred_df = pd.DataFrame.from_dict(model_predictions)
+    #Subtract actuals from the predicted values
+      error_df = pred_df.subtract(y, axis = 0)
+    #Look at the STD and box plot to see the variance in predicted values
+      mean = error_df.mean()
+      std = error_df.std()
+      px.box(error_df)
+
+
+  ## Another example of finding the best model parameters and then plotting it
+    train_mses_ = []
+    test_mses_ = []
+    for i in range(1, 21):
+        pipe = Pipeline([('pfeat', PolynomialFeatures(degree = i, include_bias=False)), 
+                        ('linreg', LinearRegression())])
+        pipe.fit(X_train, y1_train)
+        train_preds_ = pipe.predict(X_train)
+        test_preds_ = pipe.predict(X_test)
+        train_mses_.append(mean_squared_error(y1_train_, train_preds_))
+        test_mses_.append(mean_squared_error(y1_test_, test_preds_))
+    best_model_complexity_ = test_mses_.index(min(test_mses_)) + 1
+
+  ## + Plotting the example above 
+    print(f'The Complexity that minimized Test Error was: {test_mses.index(min(test_mses)) + 1}')
+    plt.plot(range(1, 21), train_mses, '--o', label = 'training error')
+    plt.plot(range(1, 21), test_mses, '--o', label = 'testing error')
+    plt.xticks(range(1, 21), range(1, 21))
+    plt.xlabel('Degree Complexity')
+    plt.ylabel('Mean Squared Error')
+    plt.legend();
+
+#################################
+
+  # Splitting a training set
+    X_train, X_test, y1_train, y1_test = train_test_split(df[['x']], df['y1'], random_state = 32, test_size=.3)
+    y2_train, y2_test, y3_train, y3_test = train_test_split(df['y2'], df['y3'], random_state = 22, test_size=.3)
+
+  ## Return the best model based using a training set and test set
+
+    def simple_cross_validation(X_train, y_train, X_test, y_test):
+        best_pipe = None #placeholder for best model
+        best_mse = np.inf #set best mse to infinity to begin
+        for i in range(1, 21):
+            pipe = Pipeline([('pfeat', PolynomialFeatures(degree = i, include_bias=False)), 
+                        ('linreg', LinearRegression())])
+            pipe.fit(X_train, y_train)
+            test_preds = pipe.predict(X_test)
+            test_mse = mean_squared_error(y_test, test_preds)
+            if test_mse < best_mse:
+                best_mse = test_mse
+                best_pipe = pipe
+        return best_pipe
+
+    best_model = simple_cross_validation(X_train, y2_train, X_test, y2_test)
+    best_model.get_params() #should be degree = 10
+
+
+  
