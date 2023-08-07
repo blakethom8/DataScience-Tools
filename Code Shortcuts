@@ -4,9 +4,15 @@
   df.describe()
   df.head()
 
+  # count unique values in a category
+  df_categories = df['column'].value_counts()  
+
   ## grab object columns and put their names in a list and drop the columns from dataset
   object_columns = df.select_dtypes('object').columns.tolist() 
   df_numeric = df.drop(object_columns, acis=1)
+
+  float_columns_df = df.select_dtypes(include='float64') # or just use this to select float64 column types
+
 
   ## Find null values then drop null values
   null_by_column = df.isnull().sum()
@@ -15,8 +21,19 @@
   ## Sort Columns
   sorted_df = df.sort_values(by="column_name")
 
-  ## Find the correlated values to a a column salesprice
-    corr = train.corr()[['SalePrice']].nlargest(columns = 'SalePrice', n = 2).index[1]
+  ## Find the correlated values to a column salesprice and find the most correlated value
+  corr = train.corr()[['SalePrice']].nlargest(columns = 'SalePrice', n = 2).index[1]
+
+  ## Process for removing outliers based on Zscore
+  import numpy as np
+  import scipy.stats as stats
+  cali_floats= cali.select_dtypes(include='float64')
+
+  z_scores = cali_floats.apply(stats.zscore) # calculates Z-score per each column 
+  outlier_detection = (z_scores > 3) | (z_scores < -3) # passes boolean mask across z_scores dataframe
+  outlier_detection.sum() # Check the number of outliers per column
+  cali_no_outliers = cali[~outlier_detection.any(axis=1)] ## use this to pass a filter to the original dataset based on the boolean values, outputs a dataframe
+  cali_no_outliers.info()
 
 
 # PCA Analysis
@@ -208,7 +225,6 @@ for i in range(1, 11):
 #find the minimum index
   best_complexity = mses.index(min(mses)) + 1
 
-
 ### I really like this example of module 8. Here, we are taking a subset of data
 ### as our development set. Training the model on the dataset, then predicting the
 ### the dev set and looking at the Variance of the different degress
@@ -289,6 +305,31 @@ for i in range(1, 11):
 
     best_model = simple_cross_validation(X_train, y2_train, X_test, y2_test)
     best_model.get_params() #should be degree = 10
+
+
+
+  #### USing a pipeline with multiple column transformations to find the best model paremeters
+  features = ['CentralAir', 'HeatingQC', 'OverallQual', 'GrLivArea', 'KitchenQual', 'FullBath']
+  train_mses_ = []
+  test_mses_ = []
+  #for degree in 1 - 5
+  for i in range(1, 6):
+      #create pipeline with PolynomialFeatures degree i
+      poly_ordinal_ohe_ = make_column_transformer((PolynomialFeatures(degree = i), make_column_selector(dtype_include=np.number)),
+                                             (OrdinalEncoder(categories = [['Po', 'Fa', 'TA', 'Gd', 'Ex']]), ['HeatingQC']),
+                                                 (OneHotEncoder(drop = 'if_binary'), ['CentralAir']))
+      pipe = Pipeline([('transformer', poly_ordinal_ohe_), ('linreg', LinearRegression())])
+  
+      pipe.fit(X_train[features], y_train)
+      #fit on train
+      p1 = pipe.predict(X_train[features])
+      p2 = pipe.predict(X_test[features])
+      #predict on train and test
+      train_mses.append(mean_squared_error(y_train, p1))
+      test_mses.append(mean_squared_error(y_test, p2))
+  
+  best_complexity_ = test_mses_.index(min(test_mses_)) + 1
+  best_mse_ = min(test_mses_)
 
 
   
