@@ -35,6 +35,15 @@
   cali_no_outliers = cali[~outlier_detection.any(axis=1)] ## use this to pass a filter to the original dataset based on the boolean values, outputs a dataframe
   cali_no_outliers.info()
 
+  ##Nice side by side histogram chart
+    fig, ax = plt.subplots(1, 2, figsize = (15, 4))
+    ax[0].hist(insurance['charges'])
+    ax[0].grid()
+    ax[0].set_title('Original charges column')
+    ax[1].hist(np.log1p(insurance['charges']))
+    ax[1].grid()
+    ax[1].set_title('Logarithm of charges');
+
 
 # PCA Analysis
   from sklearn.decomposition import PCA
@@ -330,6 +339,166 @@ for i in range(1, 11):
   
   best_complexity_ = test_mses_.index(min(test_mses_)) + 1
   best_mse_ = min(test_mses_)
+
+
+## Sequential Feature Selection
+  poly3 = PolynomialFeatures(degree=3, include_bias=False)
+  all_degree_3_combinations = poly3.fit_tranform(vehicle_data[['cylinders', 'weight', 'hp']_
+  all_degree_3_combinations = pd.DataFrame(all_degree_3_combinations, columns = poly3.get_feature_names_out())
+
+# need to create two list of numbers, so pass indices for Test and Dev set
+  all_indices = range(0, len(vehicle_data))
+  all indices = shuffle(all_indices)
+  training_indices, dev_indices =  np.split(all_indices, [320])
+
+  # pass argument 
+  feature_select = SequentialFeatureSelector(
+                      estimator = LinearRegression(), 
+                      scoring = 'neg_mean_squared_error', 
+                      cv=[[training_indices, dev_indices]],   #cv stands for cross-validation
+                      n_features_to_select = 4 )
+
+  # fit transform on our data and capture output
+    best_four = pd.DataFrame(feature_Select.fit_transform(all_degree_3_combinations, 
+        vehicle_data['mpg'], 
+        columns = feature_select.get_feature_names_out())
+
+  # Compare performance
+    best_four_sfs_model = LinearRegression()
+    best_four_sfs_model.fit(best_four_features.iloc[training_indices], vehicle_data.iloc[training_indices]['mpg'])
+
+## Sequential Feature Example 2 - Insurance
+  #split the dataset
+  X_train, X_test, y_train, y_test = train_test_split(insurance.drop('charges', axis = 1), np.log1p(insurance.charges), 
+                                                   random_state=42, test_size = 0.3)
+  #create a dataframe of the features
+    poly_features = PolynomialFeatures(degree = 3, include_bias=False)
+    X_train_poly = poly_features.fit_transform(X_train[['age', 'bmi', 'children']])
+    X_test_poly = poly_features.fit_transform(X_test[['age', 'bmi', 'children']])
+    columns = poly_features.get_feature_names_out()
+    train_df = pd.DataFrame(X_train_poly, columns=columns)
+    test_df = pd.DataFrame(X_test_poly, columns = columns)
+
+  #use Sequential Feature Selection and convert to DF
+    selector = SequentialFeatureSelector(LinearRegression(), n_features_to_select=3)
+    best_features = selector.fit_transform(train_df, y_train)
+    best_features_df = pd.DataFrame(best_features, columns = selector.get_feature_names_out())
+
+  #create a pipeline of the regression model
+    pipe = Pipeline([('column_selector', selector),
+                    ('linreg', LinearRegression())])
+    pipe.fit(train_df, y_train)
+    train_preds = pipe.predict(train_df)
+    test_preds = pipe.predict(test_df)
+    train_mse = mean_squared_error(y_train, train_preds)
+    test_mse = mean_squared_error(y_test, test_preds)
+
+#Ridge and LASSO Regularization are used to control the complexity
+  #subset dataset
+      X_train_ = train_df.drop('target_log', axis = 1)
+      X_test_ = test_df.drop('target_log', axis = 1)
+      y_train_ = train_df['target_log']
+      y_test_ = test_df['target_log']
+  #Ridge-ify  
+    model_1 = Ridge().fit(X_train, y_train)
+    model_1_coefs = model_1.coef_
+
+
+#Good example of mapping the results on a dataset
+  data = pd.read_csv('data/synthetic_9.4.csv')
+  X, y = data[['x']], data['y']
+  ols_pipe = Pipeline([('poly_features', PolynomialFeatures(degree = 5, include_bias= False)), 
+                     ('linreg', LinearRegression())])
+  ols_pipe.fit(X, y)
+  ols_preds = ols_pipe.predict(X)
+
+  ##Plot
+    Xnp = X.to_numpy()
+    plt.scatter(Xnp, y, label = 'data')
+    plt.plot(Xnp, ols_preds, 'r--', label = 'ols predictions')
+    plt.legend()
+    plt.grid();
+
+#Applying a Standard Scaler to the pipeline
+  scaled_pipe = Pipeline([('scaler', StandardScaler()), ('ridge', Ridge())]).fit(X_train, y_train)
+  train_preds = scaled_pipe.predict(X_train)
+  test_preds = scaled_pipe.predict(X_test)
+  train_mse = mean_squared_error(y_train, train_preds)
+  test_mse = mean_squared_error(y_test, test_preds)
+
+##Using GridSearch CV
+  scaled_ridge_model = Pipeline([
+    ('josh_transform', PolynomialFeatures(degree=3, include_bias = False)),
+    ('scale', StandardScaler()),
+    ('josh_regression', Ridge())
+    )]
+  parameters_to_try = { 'josh_regression_alpha': 10**np.linspace(-5, 4, 100)}
+
+  from sklearn.model_selection import GridSearchCV
+  model_finder = GridSearchCV(
+    estimator = scaled_ridge_model,
+    param_grid = parameters_to_try,
+    scoring = 'neg_mean_squared_error'.
+    cv = [[training_indices, dev_indices]]
+    )
+
+    model_finder.fit(vehicle_data[numeric_features], vehicle_data;"mpg"])
+    best_model = model_finder.best_estimator 
+    best_model.names_steps['josh_regression'].coef_ #see the coefficients
+    model_finder.cv_results_ #when doing this, change parameters to try to reduce space 
+        i.e. parameters_to_try = {'josh_regression_alpha': [0.001, 1, 1000]}
+
+##Grid CV using sequential model selection
+  selector_pipe = Pipeline([('selector', SequentialFeatureSelector(LinearRegression())),
+                         ('model', LinearRegression())])
+
+  param_dict = {'selector__n_features_to_select': [2, 3, 4, 5]}
+  selector_grid = GridSearchCV(selector_pipe, param_grid=param_dict)
+  selector_grid.fit(X_train, y_train)
+  train_preds = selector_grid.predict(X_train)
+  test_preds = selector_grid.predict(X_test)
+  selector_train_mse = mean_squared_error(y_train, train_preds)
+  selector_test_mse = mean_squared_error(y_test, test_preds)
+
+  best_estimator = selector_grid.best_estimator_   #grab best estimator
+  best_selector = best_estimator.named_steps['selector']  #extract the selector from pipeline
+  best_model = selector_grid.best_estimator_.named_steps['model']  #extract the model from pipeline
+  feature_names = X_train.columns[best_selector.get_support()]  #extract best features from selector, returns booleans if they were selected or not
+  coefs = best_model.coef_    #coefficients from best model
+
+  print(best_estimator)
+  print(f'Features from best selector: {feature_names}.')
+  print('Coefficient values: ')
+  print('===================')
+  pd.DataFrame([coefs.T], columns = feature_names, index = ['model'])
+
+#Using Lasso as feature selection
+  model_selector_pipe = Pipeline([('poly_features', PolynomialFeatures(degree = 3, include_bias = False)),
+                                ('scaler', StandardScaler()),
+                                ('selector', SelectFromModel(Lasso())),
+                                ('linreg', LinearRegression())])
+  model_selector_pipe.fit(auto_X_train, auto_y_train)
+  selector_train_mse = mean_squared_error(auto_y_train, model_selector_pipe.predict(auto_X_train))
+  selector_test_mse = mean_squared_error(auto_y_test, model_selector_pipe.predict(auto_X_test))
+
+
+# Time Forecasting 
+  pd.to_datetime(df['Date')
+  df = df.set_index(pd.to_datetime(df['Date'])
+  df.drop(columns = ['column1', 'column2'], inplace=True)
+  df.rename(columns = {'originalcolumnname' : 'newcolumnname' }, inplace = True)
+
+  df.plot()
+  
+    
+
+
+    
+
+
+
+
+  
 
 
   
