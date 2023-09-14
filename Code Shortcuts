@@ -635,6 +635,72 @@ high_preds = np.where(knn_ex.predict_proba(cancer_x_test)[:, 1] > .95, 1, 0)
 mid_preds = knn_ex.predict(cancer_x_test)
 
 
+# Logistic Regression - End to End Classification Problem 
+
+  import pandas as pd
+  import numpy as np
+  import matplotlib.pyplot as plt
+  
+  
+  from sklearn.compose import make_column_selector, make_column_transformer
+  from sklearn.preprocessing import OneHotEncoder, StandardScaler, PolynomialFeatures
+  from sklearn.linear_model import LogisticRegression
+  from sklearn.feature_selection import SelectFromModel
+  from sklearn.pipeline import Pipeline
+  from sklearn.model_selection import train_test_split, GridSearchCV
+  from sklearn.metrics import ConfusionMatrixDisplay, RocCurveDisplay
+  
+  # Clean up the data sets
+    df['TotalCharges'] = df['TotalCharges'].replace(' ', np.nan).astype('float')
+    df = df.dropna()
+    X_train, X_test, y_train, y_test = train_test_split(df.drop(['Churn', 'customerID'], axis = 1), df['Churn'], random_state = 442,
+                                                       stratify = df['Churn'])
+  
+  # Manipulate data
+    selector = make_column_selector(dtype_include=object)
+    transformer = make_column_transformer((OneHotEncoder(drop = 'first'), selector),
+                                         remainder = StandardScaler())
+  
+  #Feature Extractor using L1 penalty
+    extractor = SelectFromModel(LogisticRegression(penalty='l1', solver = 'liblinear' ,random_state = 42))
+    
+    # Build the pipeline with Estimator and determine the score on the test data 
+    lgr_pipe = Pipeline([('transformer', transformer),
+                        ('selector', extractor),
+                        ('lgr', LogisticRegression(random_state=42, max_iter = 1000))])
+    
+    lgr_pipe.fit(X_train, y_train)
+    
+    pipe_1_acc = lgr_pipe.score(X_test, y_test)
+    lgr_pipe
+  
+  # Examine the confusion matrix and ROC curve and determine the false positive, false negative, and ROC AUC
+    fig, ax = plt.subplots(1, 2, figsize = (20, 6))
+    ConfusionMatrixDisplay.from_estimator(lgr_pipe, X_test, y_test, ax = ax[0])
+    RocCurveDisplay.from_estimator(lgr_pipe, X_test, y_test, ax = ax[1])
+    ax[1].plot(np.array([0, 1]), np.array([0, 1]))
+    fp = 126
+    fn = 194
+    auc = 0.86
+    
+  # Use the predict_proba method to select the probabilities of the No class
+    no_probs = lgr_pipe.predict_proba(X_test)[:, 0]
+    
+    # Identify the most important features
+    feature_names = lgr_pipe.named_steps['transformer'].get_feature_names_out() 
+    selected_features =feature_names[ [int(i[1:]) for i in lgr_pipe.named_steps['selector'].get_feature_names_out()]]
+    clean_names = [i.split('__')[-1] for i in selected_features]
+    coef_df = pd.DataFrame({'feature': clean_names, 'coefs': lgr_pipe.named_steps['lgr'].coef_[0]})
+    coef_df['coefs'] = coef_df['coefs'].apply(abs)
+    coef_df = coef_df.sort_values(by = 'coefs', ascending = False)
+    coef_df.head(10)
+
+
+
+
+
+
+
   
     
 
