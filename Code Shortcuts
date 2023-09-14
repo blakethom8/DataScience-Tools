@@ -489,6 +489,151 @@ for i in range(1, 11):
   df.rename(columns = {'originalcolumnname' : 'newcolumnname' }, inplace = True)
 
   df.plot()
+
+
+K Nearest Neighors ! 
+
+Activity 12.1
+
+    from sklearn.preprocessing import StandardScaler, OneHotEncoder
+    from sklearn.pipeline import Pipeline
+    from sklearn.compose import make_column_transformer
+    from sklearn.neighbors import KNeighborsClassifier
+    from sklearn.model_selection import train_test_split, GridSearchCV
+
+    X = default[['student', 'balance', 'income']]
+    y = default['default']
+    
+    X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=42)
+    
+    transformer = make_column_transformer((OneHotEncoder(drop = 'if_binary'), ['student']), 
+                                         remainder = StandardScaler())
+    
+    fivepipe = Pipeline([('transform', transformer), ('knn', KNeighborsClassifier(n_neighbors = 5))])
+    fivepipe.fit(X_train, y_train)
+    fivepipe_acc = fivepipe.score(X_test, y_test)
+    
+    five_fp = sum(fivepipe.predict(X_test) != y_test)
+    fifty_fp = sum(fiftypipe.predict(X_test) != y_test)
+    
+    # Answer check
+    print(f'Number of False Predictions with five neighbors: {five_fp}')
+    print(f'Number of False Predictions with five neighbors: {fifty_fp}')
+
+# Using the same dataset with GridSearchCV
+
+    baseline = df['default'].value_counts(normalize = True)[0] #check score if you guess the most frequently occuring class
+    
+    params = {'knn__n_neighbors': list(range(1, 22, 2))} #we are going to test only odd numbers for KNN
+    
+    params = {'knn__n_neighbors': list(range(1, 22, 2))}
+    knn_grid = GridSearchCV(knn_pipe, param_grid=params)
+    knn_grid.fit(X_train, y_train)
+    best_k = list(knn_grid.best_params_.values())[0]
+    best_acc = knn_grid.score(X_test, y_test)
+    
+    # Answer check
+    print(best_acc)
+    print(best_k)
+
+    ## Leverage other parameters in the pipeline
+    
+    params2 = {'knn__n_neighbors': list(range(1, 22, 2)),
+              'knn__weights': ['uniform', 'distance'],
+              'knn__p': [1, 2]}
+    weight_grid = GridSearchCV(knn_pipe, param_grid=params2)
+    weight_grid.fit(X_train, y_train)
+    weights_acc = weight_grid.score(X_test, y_test)
+
+
+    ## Increasing the strictness of predictions so it requires a 0.7 probability 
+    base_pipe = Pipeline([('transformer', transformer), ('knn', KNeighborsClassifier(n_neighbors=10))])
+    base_pipe.fit(X_train, y_train)
+    base_probs = base_pipe.predict_proba(X_test)
+    strict_preds = np.where(base_probs[:, 0] > .7, 'No', 'Yes')
+    strict_fn = 0
+    for i, j in zip(strict_preds, y_test):
+        if i == 'No':
+            if j == 'Yes':
+                strict_fn += 1
+
+
+## Logistic Regression Problems !!!!!
+
+  #penguin logistic regression
+  X = binary_penguins[['flipper_length_mm']]
+  y = binary_penguins['species'].map({'Adelie': 0, 'Gentoo': 1})  #use the map function to alter column structure
+  lr_flipper = LinearRegression().fit(X, y)      # establish model
+  
+  # P(Gentoo) = intercept + slope*X
+  # threshold = (0.5 - intercept) / slope
+  threshold = float((0.5 - lr_flipper.intercept_)/lr_flipper.coef_)
+  
+  ## create the predictive model 
+  
+  def linear_preds(X, threshold, model):
+      pred = model.coef_*X + model.intercept_
+      return np.where(pred >= 0.5, 1, 0)
+  
+  preds = linear_preds(X, 0.5, lr_flipper) # predict values
+  
+  linear_acc = sum(preds.ravel() == y)/len(y) # determine the accuracy of the model 
+
+## Now let's do it, but by building a Logistic Regression Model
+
+penguins = sns.load_dataset('penguins').dropna()
+penguins = penguins.loc[(penguins['species'] == 'Adelie') | (penguins['species'] == 'Gentoo')]
+X = penguins.drop('species', axis = 1)[['flipper_length_mm']]
+y = np.where(penguins.species == 'Adelie', 0, 1)
+X_train, X_test, y_train, y_test = train_test_split(X, y, random_state = 42)
+
+plt.scatter(X, penguins.species, c = y)
+plt.grid()
+plt.xlabel('Flipper Length (mm)')
+plt.ylabel('Species')
+plt.title('Flipper Length by Species')
+
+logreg = LogisticRegression().fit(X_train, y_train)
+
+#This function takes in a fit linear model
+#and returns the models intercept + coefs*X
+
+def linear_predictions(model, X):
+    return model.coef_*X + model.intercept_
+
+predictions = linear_predictions(logreg, X_train)
+np.round(predictions.head())
+
+# The predictions above are the log odds for the positive class. To interpret these, we need to return the original sigmoid form
+# Complete the function sigma below that takes in an array of log odds (like predictions) and returns the sigmoid function
+
+def sigma(predictions):
+    return 1/(1 + np.exp(-predictions))
+
+probs = sigma(predictions)
+
+#now use the probabilities obtained from the sigmoid function to make predictions
+class_predictions = np.where(sigma(predictions) >= 0.5, 1, 0)
+
+#we can use this code instead to determine these probabilities
+positive_probs = logreg.predict_proba(X_test)[:, 1]
+
+# now let's score the classifier
+preds = logreg.predict(X_test)
+accuracy = accuracy_score(y_test, preds)
+precision = precision_score(y_test, preds)
+recall = recall_score(y_test, preds)
+
+
+
+
+
+
+
+
+
+
+
   
     
 
